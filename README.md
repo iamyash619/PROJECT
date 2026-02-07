@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Constituency Issue Heatmap</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+  <style>
+    :root{
+      --bg:#070b12;
+      --card:#0c1322;
+      --card2:#0f1a2e;
+      --text:#e8eefc;
+      --muted:#a9b6d6;
+      --line:rgba(255,255,255,.08);
+
+      --brand:#6ee7ff;
+      --brand2:#8b5cf6;
+
+      --good:#22c55e;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --info:#38bdf8;
+
+      --shadow: 0 18px 60px rgba(0,0,0,.45);
+      --radius: 18px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: radial-gradient(1200px 800px at 10% 10%, rgba(139,92,246,.20), transparent 60%),
+                  radial-gradient(1000px 700px at 90% 20%, rgba(110,231,255,.14), transparent 55%),
+                  linear-gradient(180deg, #05070c, #070b12);
+      color:var(--text);
+      overflow-x:hidden;
+    }
+
+    body:before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.20'/%3E%3C/svg%3E");
+      opacity:.06;
+      pointer-events:none;
+      mix-blend-mode: overlay;
+      z-index:-1;
+      animation: drift 14s linear infinite;
+    }
+    @keyframes drift{
+      from{ transform:translate3d(0,0,0); }
+      to{ transform:translate3d(-60px,40px,0); }
+    }
+
+    .app{
+      display:grid;
+      grid-template-columns: 420px 1fr;
+      min-height:100vh;
+      gap:16px;
+      padding:16px;
+    }
+
+    @media (max-width: 980px){
+      .app{
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+    }
+
+    .sidebar{
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+      animation: pop .6s ease both;
+    }
+    @keyframes pop{
+      from{ opacity:0; transform: translateY(10px) scale(.98); }
+      to{ opacity:1; transform: translateY(0) scale(1); }
+    }
+
+    .sideTop{
+      padding:18px 18px 12px;
+      border-bottom:1px solid var(--line);
+      background: linear-gradient(90deg, rgba(110,231,255,.10), rgba(139,92,246,.10));
+    }
+
+    .brandRow{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .logo{
+      width:44px;height:44px;
+      border-radius:14px;
+      background: radial-gradient(circle at 30% 30%, var(--brand), var(--brand2));
+      box-shadow: 0 12px 30px rgba(110,231,255,.15);
+      position:relative;
+      overflow:hidden;
+    }
+    .logo:after{
+      content:"";
+      position:absolute;
+      inset:-60%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+      transform: rotate(25deg);
+      animation: shine 2.6s ease-in-out infinite;
+    }
+    @keyframes shine{
+      0%,45%{ transform:translateX(-40%) rotate(25deg); opacity:0; }
+      60%{ opacity:1; }
+      100%{ transform:translateX(40%) rotate(25deg); opacity:0; }
+    }
+
+    .titleWrap h1{
+      font-size: 18px;
+      margin:0;
+      line-height:1.2;
+      letter-spacing:.2px;
+    }
+    .titleWrap p{
+      margin:2px 0 0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .pillRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    .pill{
+      font-size:12px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.18);
+      color: var(--muted);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      transition:.2s ease;
+      user-select:none;
+    }
+    .pill strong{ color:var(--text); font-weight:600; }
+
+    .controls{
+      padding:14px 18px 16px;
+      display:grid;
+      gap:12px;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    @media (max-width: 980px){
+      .grid2{ grid-template-columns: 1fr; }
+    }
+
+    .field label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+    .field input, .field select, .field textarea{
+      width:100%;
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+      outline:none;
+      transition:.2s ease;
+    }
+    .field textarea{
+      min-height:92px;
+      resize: vertical;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus{
+      border-color: rgba(110,231,255,.35);
+      box-shadow: 0 0 0 4px rgba(110,231,255,.08);
+    }
+
+    .btnRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      cursor:pointer;
+      border:none;
+      padding:12px 14px;
+      border-radius:14px;
+      font-weight:700;
+      letter-spacing:.2px;
+      transition: transform .15s ease, box-shadow .2s ease, opacity .2s ease;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      user-select:none;
+    }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+    .btnPrimary{
+      background: linear-gradient(90deg, var(--brand), var(--brand2));
+      color:#04101a;
+      box-shadow: 0 14px 40px rgba(139,92,246,.16);
+    }
+    .btnGhost{
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      border:1px solid var(--line);
+    }
+    .btnDanger{
+      background: rgba(239,68,68,.12);
+      color: #ffd6d6;
+      border:1px solid rgba(239,68,68,.22);
+    }
+
+    .hint{
+      font-size:12px;
+      color: var(--muted);
+      line-height:1.45;
+      padding: 0 2px;
+    }
+
+    .listWrap{
+      padding: 0 18px 18px;
+    }
+    .listHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:6px;
+      margin-bottom:10px;
+    }
+    .listHeader h2{
+      font-size:14px;
+      margin:0;
+      color: var(--text);
+      letter-spacing:.2px;
+    }
+
+    .chip{
+      font-size:12px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.2);
+      color: var(--muted);
+    }
+
+    .issueList{
+      display:grid;
+      gap:10px;
+      max-height: 42vh;
+      overflow:auto;
+      padding-right:4px;
+    }
+    @media (max-width: 980px){
+      .issueList{ max-height: 32vh; }
+    }
+
+    .issueCard{
+      border-radius: 18px;
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      padding:12px 12px;
+      transition:.18s ease;
+      position:relative;
+      overflow:hidden;
+      animation: slideIn .35s ease both;
+    }
+    @keyframes slideIn{
+      from{ opacity:0; transform: translateY(8px); }
+      to{ opacity:1; transform: translateY(0); }
+    }
+    .issueCard:hover{
+      transform: translateY(-1px);
+      border-color: rgba(110,231,255,.18);
+    }
+
+    .issueTop{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .issueTitle{
+      margin:0;
+      font-size:13px;
+      line-height:1.3;
+      font-weight:800;
+    }
+    .issueMeta{
+      margin:3px 0 0;
+      font-size:12px;
+      color: var(--muted);
+    }
+
+    .badge{
+      font-size:11px;
+      padding:6px 9px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.18);
+      white-space:nowrap;
+    }
+    .bNew{ color:#dbeafe; border-color: rgba(59,130,246,.25); background: rgba(59,130,246,.08); }
+    .bReview{ color:#fff7ed; border-color: rgba(245,158,11,.25); background: rgba(245,158,11,.10); }
+    .bProgress{ color:#ecfeff; border-color: rgba(56,189,248,.25); background: rgba(56,189,248,.08); }
+    .bDone{ color:#dcfce7; border-color: rgba(34,197,94,.25); background: rgba(34,197,94,.08); }
+
+    .issueActions{
+      display:flex;
+      gap:8px;
+      margin-top:10px;
+      flex-wrap:wrap;
+    }
+    .miniBtn{
+      font-size:12px;
+      padding:9px 10px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.20);
+      color: var(--text);
+      cursor:pointer;
+      transition:.15s ease;
+    }
+    .miniBtn:hover{ border-color: rgba(110,231,255,.22); }
+    .miniBtn:active{ transform: translateY(1px); }
+
+    .mapArea{
+      border-radius: var(--radius);
+      border:1px solid var(--line);
+      overflow:hidden;
+      box-shadow: var(--shadow);
+      position:relative;
+      animation: pop .6s ease both;
+      min-height: 72vh;
+    }
+    @media (max-width: 980px){
+      .mapArea{ min-height: 54vh; }
+    }
+
+    #map{
+      height:100%;
+      width:100%;
+      background:#0b1020;
+    }
+
+    .mapOverlay{
+      position:absolute;
+      left:14px;
+      right:14px;
+      top:14px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      z-index: 500;
+      pointer-events:none;
+    }
+
+    .mapStat{
+      pointer-events:auto;
+      background: rgba(0,0,0,.35);
+      border:1px solid var(--line);
+      backdrop-filter: blur(10px);
+      border-radius: 999px;
+      padding:10px 12px;
+      font-size:12px;
+      color: var(--muted);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.25);
+    }
+    .mapStat strong{ color:var(--text); }
+
+    .toggle{
+      pointer-events:auto;
+      cursor:pointer;
+      user-select:none;
+      background: linear-gradient(90deg, rgba(110,231,255,.10), rgba(139,92,246,.10));
+      border:1px solid rgba(110,231,255,.18);
+      color: var(--text);
+      border-radius: 999px;
+      padding:10px 12px;
+      font-size:12px;
+      font-weight:800;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      transition:.2s ease;
+    }
+    .toggle:hover{ transform: translateY(-1px); }
+
+    .toast{
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(12px);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      opacity:0;
+      pointer-events:none;
+      transition:.25s ease;
+      font-size:13px;
+      max-width: min(720px, 92vw);
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .toast.show{
+      opacity:1;
+      transform: translateX(-50%) translateY(-6px);
+    }
+
+    .leaflet-popup-content-wrapper{
+      background: rgba(9,13,22,.92);
+      color: var(--text);
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 16px 60px rgba(0,0,0,.45);
+    }
+    .leaflet-popup-tip{
+      background: rgba(9,13,22,.92);
+    }
+    .popupTitle{
+      font-weight:900;
+      margin:0 0 6px;
+      font-size:13px;
+    }
+    .popupMeta{
+      margin:0;
+      color: var(--muted);
+      font-size:12px;
+      line-height:1.4;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sideTop">
+        <div class="brandRow">
+          <div class="logo"></div>
+          <div class="titleWrap">
+            <p>Report & track problems in your constituency</p>
+          </div>
+        </div>
+
+        <div class="pillRow">
+          <div class="pill"><strong>Map</strong> Live Pins</div>
+          <div class="pill"><strong>Heatmap</strong> Hotspots</div>
+          <div class="pill"><strong>Tracking</strong> Status</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="grid2">
+          <div class="field">
+            <label>Issue Category</label>
+            <select id="issueType">
+              <option value="Road">Road / Potholes</option>
+              <option value="Water">Water Supply</option>
+              <option value="Electricity">Electricity</option>
+              <option value="Education">Education</option>
+              <option value="Women Safety">Women Safety</option>
+              <option value="Public Safety">Public Safety</option>
+              <option value="Sanitation">Sanitation</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Urgency</label>
+            <select id="urgency">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Describe the issue</label>
+          <textarea id="description" placeholder="Example: Street light not working near the school gate since 2 weeks..."></textarea>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Your Name (optional)</label>
+            <input id="reporter" placeholder="Anonymous citizen" />
+          </div>
+
+          <div class="field">
+            <label>Photo URL (optional)</label>
+            <input id="photoUrl" placeholder="Paste image link (optional)" />
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button class="btn btnPrimary" id="btnUseLocation">Use My Location</button>
+          <button class="btn btnGhost" id="btnDropPin">Drop Pin on Map</button>
+        </div>
+
+        <div class="btnRow">
+          <button class="btn btnPrimary" id="btnSubmit">Submit Issue</button>
+          <button class="btn btnDanger" id="btnReset">Reset Demo Data</button>
+        </div>
+
+        <div class="hint">
+          Tip: Click the map to select a location. Then submit.
+          <br/>
+          This demo stores issues in <b>localStorage</b> (no backend).
+        </div>
+      </div>
+
+      <div class="listWrap">
+        <div class="listHeader">
+          <h2>Reported Issues</h2>
+          <span class="chip" id="countChip">0</span>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Filter by Category</label>
+            <select id="filterType">
+              <option value="All" selected>All</option>
+              <option value="Road">Road / Potholes</option>
+              <option value="Water">Water Supply</option>
+              <option value="Electricity">Electricity</option>
+              <option value="Education">Education</option>
+              <option value="Women Safety">Women Safety</option>
+              <option value="Public Safety">Public Safety</option>
+              <option value="Sanitation">Sanitation</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Filter by Status</label>
+            <select id="filterStatus">
+              <option value="All" selected>All</option>
+              <option value="New">New</option>
+              <option value="In Review">In Review</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Resolved">Resolved</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="issueList" id="issueList"></div>
+      </div>
+    </aside>
+
+    <main class="mapArea">
+      <div class="mapOverlay">
+        <div class="mapStat">Selected: <strong id="selectedText">Not selected</strong></div>
+        <div class="mapStat">Total: <strong id="totalText">0</strong></div>
+        <div class="toggle" id="toggleHeat">Heatmap: OFF</div>
+        <div class="toggle" id="toggleCluster">Focus: ALL</div>
+      </div>
+
+      <div id="map"></div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast">Saved.</div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function uid(){
+      return "ISS-" + Math.random().toString(16).slice(2,10).toUpperCase();
+    }
+
+    function nowText(){
+      const d = new Date();
+      return d.toLocaleString();
+    }
+
+    function toast(msg){
+      const t = $("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(()=>t.classList.remove("show"), 2200);
+    }
+
+    function safeText(s){
+      return (s || "").toString().replace(/[<>]/g, "");
+    }
+
+    function urgencyWeight(u){
+      if(u === "High") return 0.95;
+      if(u === "Medium") return 0.65;
+      return 0.35;
+    }
+
+    const STORAGE_KEY = "civicpulse_issues_v1";
+
+    function loadIssues(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return [];
+        return JSON.parse(raw);
+      }catch(e){
+        return [];
+      }
+    }
+
+    function saveIssues(list){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    function seedIfEmpty(){
+      const existing = loadIssues();
+      if(existing.length) return;
+
+      const baseLat = 28.6139;
+      const baseLng = 77.2090;
+
+      const demo = [
+        { type:"Road", urgency:"High", status:"New", desc:"Huge potholes near main market road.", lat:baseLat+0.012, lng:baseLng+0.010, reporter:"Aman", photo:"", createdAt:nowText(), id:uid() },
+        { type:"Water", urgency:"High", status:"In Review", desc:"No water supply in this block for 3 days.", lat:baseLat-0.010, lng:baseLng+0.008, reporter:"Neha", photo:"", createdAt:nowText(), id:uid() },
+        { type:"Women Safety", urgency:"High", status:"In Progress", desc:"Street lights off, unsafe after 8PM.", lat:baseLat+0.004, lng:baseLng-0.010, reporter:"Anonymous", photo:"", createdAt:nowText(), id:uid() },
+        { type:"Sanitation", urgency:"Medium", status:"New", desc:"Garbage not collected for a week.", lat:baseLat-0.006, lng:baseLng-0.006, reporter:"Rahul", photo:"", createdAt:nowText(), id:uid() },
+        { type:"Education", urgency:"Medium", status:"Resolved", desc:"School toilet fixed after complaint.", lat:baseLat+0.009, lng:baseLng-0.002, reporter:"Priya", photo:"", createdAt:nowText(), id:uid() },
+        { type:"Public Safety", urgency:"High", status:"New", desc:"Speeding vehicles near crossing. Need speed breaker.", lat:baseLat-0.003, lng:baseLng+0.014, reporter:"Kunal", photo:"", createdAt:nowText(), id:uid() }
+      ];
+
+      saveIssues(demo);
+    }
+
+    seedIfEmpty();
+
+    let selectedLatLng = null;
+    let heatEnabled = false;
+    let focusMode = "ALL";
+
+    const map = L.map("map", { zoomControl: true }).setView([28.6139, 77.2090], 12);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap"
+    }).addTo(map);
+
+    let pinLayer = L.layerGroup().addTo(map);
+    let heatLayer = null;
+    let selectionMarker = null;
+
+    function statusBadgeClass(status){
+      if(status === "New") return "bNew";
+      if(status === "In Review") return "bReview";
+      if(status === "In Progress") return "bProgress";
+      return "bDone";
+    }
+
+    function markerEmoji(type){
+      const map = {
+        "Road":"",
+        "Water":"",
+        "Electricity":"",
+        "Education":"",
+        "Women Safety":"",
+        "Public Safety":"",
+        "Sanitation":"",
+        "Other":""
+      };
+      return map[type] || "";
+    }
+
+    function getFilteredIssues(){
+      const ft = $("filterType").value;
+      const fs = $("filterStatus").value;
+
+      return loadIssues().filter(i=>{
+        const okType = (ft === "All") ? true : i.type === ft;
+        const okStatus = (fs === "All") ? true : i.status === fs;
+        return okType && okStatus;
+      });
+    }
+
+    function refreshMap(){
+      pinLayer.clearLayers();
+
+      const all = loadIssues();
+      const filtered = getFilteredIssues();
+      const toShow = (focusMode === "FILTERED") ? filtered : all;
+
+      toShow.forEach(i=>{
+        const icon = L.divIcon({
+          className: "",
+          html: `
+            <div style="
+              width:36px;height:36px;
+              border-radius:14px;
+              display:grid;place-items:center;
+              background: rgba(0,0,0,.55);
+              border:1px solid rgba(255,255,255,.10);
+              backdrop-filter: blur(10px);
+              box-shadow: 0 16px 40px rgba(0,0,0,.35);
+              font-size:18px;
+              transform: translateY(-2px);
+            ">${markerEmoji(i.type)}</div>
+          `,
+          iconSize: [36,36],
+          iconAnchor: [18,18]
+        });
+
+        const m = L.marker([i.lat, i.lng], { icon }).addTo(pinLayer);
+
+        const photoHtml = i.photo
+          ? `<div style="margin-top:10px;">
+               <img src="${safeText(i.photo)}" style="width:100%;max-width:240px;border-radius:14px;border:1px solid rgba(255,255,255,.08);" />
+             </div>`
+          : "";
+
+        m.bindPopup(`
+          <div>
+            <p class="popupTitle">${safeText(i.type)} • ${safeText(i.id)}</p>
+            <p class="popupMeta">
+              <b>Status:</b> ${safeText(i.status)}<br/>
+              <b>Urgency:</b> ${safeText(i.urgency)}<br/>
+              <b>Reported:</b> ${safeText(i.createdAt)}<br/>
+              <b>By:</b> ${safeText(i.reporter || "Anonymous")}
+              <br/><br/>
+              ${safeText(i.desc)}
+            </p>
+            ${photoHtml}
+          </div>
+        `);
+      });
+
+      if(heatLayer){
+        map.removeLayer(heatLayer);
+        heatLayer = null;
+      }
+
+      if(heatEnabled){
+        const points = toShow.map(i => [i.lat, i.lng, urgencyWeight(i.urgency)]);
+        heatLayer = L.heatLayer(points, {
+          radius: 28,
+          blur: 18,
+          maxZoom: 16
+        }).addTo(map);
+      }
+
+      $("totalText").textContent = loadIssues().length;
+    }
+
+    map.on("click", (e)=>{
+      selectedLatLng = e.latlng;
+
+      $("selectedText").textContent =
+        selectedLatLng.lat.toFixed(5) + ", " + selectedLatLng.lng.toFixed(5);
+
+      if(selectionMarker) map.removeLayer(selectionMarker);
+
+      selectionMarker = L.circleMarker(selectedLatLng, {
+        radius: 10,
+        weight: 2,
+        color: "white",
+        fillOpacity: 0.18
+      }).addTo(map);
+
+      toast("Location selected. Now submit your issue.");
+    });
+
+    function renderList(){
+      const list = $("issueList");
+      list.innerHTML = "";
+
+      const filtered = getFilteredIssues();
+      $("countChip").textContent = filtered.length;
+
+      if(filtered.length === 0){
+        list.innerHTML = `
+          <div class="issueCard">
+            <div class="issueTop">
+              <div>
+                <p class="issueTitle">No issues found</p>
+                <p class="issueMeta">Try changing filters or submit a new issue.</p>
+              </div>
+              <span class="badge bReview">Empty</span>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      filtered
+        .sort((a,b)=> (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+        .forEach(i=>{
+          const card = document.createElement("div");
+          card.className = "issueCard";
+
+          const badgeClass = statusBadgeClass(i.status);
+
+          card.innerHTML = `
+            <div class="issueTop">
+              <div>
+                <p class="issueTitle">${safeText(i.type)} • ${safeText(i.id)}</p>
+                <p class="issueMeta">
+                  ${safeText(i.desc).slice(0, 92)}${i.desc.length > 92 ? "..." : ""}
+                  <br/>
+                  <span style="opacity:.9"> ${i.lat.toFixed(4)}, ${i.lng.toFixed(4)}</span>
+                </p>
+              </div>
+              <span class="badge ${badgeClass}">${safeText(i.status)}</span>
+            </div>
+
+            <div class="issueActions">
+              <button class="miniBtn" data-action="zoom" data-id="${i.id}">Zoom</button>
+              <button class="miniBtn" data-action="next" data-id="${i.id}">Update Status</button>
+              <button class="miniBtn" data-action="delete" data-id="${i.id}">Delete</button>
+            </div>
+          `;
+
+          list.appendChild(card);
+        });
+    }
+
+    function nextStatus(s){
+      if(s === "New") return "In Review";
+      if(s === "In Review") return "In Progress";
+      if(s === "In Progress") return "Resolved";
+      return "Resolved";
+    }
+
+    $("issueList").addEventListener("click", (e)=>{
+      const btn = e.target.closest("button");
+      if(!btn) return;
+
+      const id = btn.getAttribute("data-id");
+      const action = btn.getAttribute("data-action");
+
+      const all = loadIssues();
+      const idx = all.findIndex(x => x.id === id);
+      if(idx === -1) return;
+
+      if(action === "zoom"){
+        const it = all[idx];
+        map.setView([it.lat, it.lng], 16, { animate:true });
+        toast("Zoomed to issue on map.");
+      }
+
+      if(action === "next"){
+        all[idx].status = nextStatus(all[idx].status);
+        saveIssues(all);
+        toast("Status updated → " + all[idx].status);
+        renderList();
+        refreshMap();
+      }
+
+      if(action === "delete"){
+        const ok = confirm("Delete this issue?\n\n" + id);
+        if(!ok) return;
+        all.splice(idx, 1);
+        saveIssues(all);
+        toast("Issue deleted.");
+        renderList();
+        refreshMap();
+      }
+    });
+
+    $("btnUseLocation").addEventListener("click", ()=>{
+      if(!navigator.geolocation){
+        toast("Geolocation not supported in your browser.");
+        return;
+      }
+
+      toast("Getting your location...");
+      navigator.geolocation.getCurrentPosition(
+        (pos)=>{
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+
+          selectedLatLng = { lat, lng };
+
+          $("selectedText").textContent =
+            lat.toFixed(5) + ", " + lng.toFixed(5);
+
+          if(selectionMarker) map.removeLayer(selectionMarker);
+
+          selectionMarker = L.circleMarker([lat, lng], {
+            radius: 10,
+            weight: 2,
+            color: "white",
+            fillOpacity: 0.18
+          }).addTo(map);
+
+          map.setView([lat, lng], 15, { animate:true });
+
+          toast("Location set. Now submit your issue.");
+        },
+        ()=>{
+          toast("Location permission denied.");
+        },
+        { enableHighAccuracy:true, timeout:8000 }
+      );
+    });
+
+    $("btnDropPin").addEventListener("click", ()=>{
+      toast("Click on the map to select a location.");
+    });
+
+    $("btnSubmit").addEventListener("click", ()=>{
+      const type = $("issueType").value;
+      const urgency = $("urgency").value;
+      const desc = $("description").value.trim();
+      const reporter = $("reporter").value.trim() || "Anonymous";
+      const photo = $("photoUrl").value.trim();
+
+      if(!selectedLatLng){
+        toast("Select a location on the map first.");
+        return;
+      }
+      if(desc.length < 8){
+        toast("Write a proper description (min 8 characters).");
+        return;
+      }
+
+      const newIssue = {
+        id: uid(),
+        type,
+        urgency,
+        status: "New",
+        desc,
+        reporter,
+        photo,
+        lat: selectedLatLng.lat,
+        lng: selectedLatLng.lng,
+        createdAt: nowText()
+      };
+
+      const all = loadIssues();
+      all.unshift(newIssue);
+      saveIssues(all);
+
+      $("description").value = "";
+      $("reporter").value = "";
+      $("photoUrl").value = "";
+
+      toast("Issue submitted successfully!");
+      renderList();
+      refreshMap();
+    });
+
+    $("btnReset").addEventListener("click", ()=>{
+      const ok = confirm("Reset demo data?\nThis will delete all stored issues.");
+      if(!ok) return;
+      localStorage.removeItem(STORAGE_KEY);
+      seedIfEmpty();
+      toast("Demo data reset.");
+      renderList();
+      refreshMap();
+    });
+
+    $("toggleHeat").addEventListener("click", ()=>{
+      heatEnabled = !heatEnabled;
+      $("toggleHeat").textContent = heatEnabled ? "Heatmap: ON" : "Heatmap: OFF";
+      toast(heatEnabled ? "Heatmap enabled." : "Heatmap disabled.");
+      refreshMap();
+    });
+
+    $("toggleCluster").addEventListener("click", ()=>{
+      focusMode = (focusMode === "ALL") ? "FILTERED" : "ALL";
+      $("toggleCluster").textContent = (focusMode === "FILTERED") ? "Focus: FILTERED" : "Focus: ALL";
+      toast(focusMode === "FILTERED" ? "Showing only filtered issues on map." : "Showing all issues on map.");
+      refreshMap();
+    });
+
+    $("filterType").addEventListener("change", ()=>{
+      renderList();
+      refreshMap();
+    });
+    $("filterStatus").addEventListener("change", ()=>{
+      renderList();
+      refreshMap();
+    });
+
+    renderList();
+    refreshMap();
+
+    setTimeout(()=>{
+      const all = loadIssues();
+      if(all.length >= 2){
+        const group = all.map(i => [i.lat, i.lng]);
+        const bounds = L.latLngBounds(group);
+        map.fitBounds(bounds.pad(0.18), { animate:true });
+      }
+    }, 350);
+  </script>
+</body>
+</html>
