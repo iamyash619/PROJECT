@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustTrace | Anti-Corruption Portal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #4f46e5; --success: #16a34a; --danger: #dc2626;
+            --warning: #f59e0b; --bg: #f9fafb; --dark: #111827;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: var(--dark);
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            transition: filter 0.3s ease;
+        }
+
+        @keyframes modalZoom {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes scanGlow {
+            0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(79, 70, 229, 0); }
+        }
+
+        @keyframes shake {
+            0%, 100% {transform: translateX(0);}
+            25% {transform: translateX(-5px);}
+            75% {transform: translateX(5px);}
+        }
+
+        #authGate {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            padding: 35px 22px;
+            border-radius: 24px;
+            width: min(420px, 100%);
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            animation: modalZoom 0.3s ease-out;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .nav h1 {
+            margin: 0;
+            color: var(--primary);
+            font-size: clamp(22px, 4vw, 34px);
+        }
+
+        .btn-auth {
+            padding: 10px 18px;
+            background: var(--dark);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }
+
+        .officer-dashboard {
+            display: none;
+            border-top: 5px solid var(--primary);
+            animation: scanGlow 2s infinite;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-family: inherit;
+            box-sizing: border-box;
+            font-size: 15px;
+        }
+
+        textarea { min-height: 90px; resize: vertical; }
+
+        .btn-main {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 16px;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 12px;
+        }
+
+        table {
+            width: 100%;
+            min-width: 820px;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th {
+            background: #f3f4f6;
+            padding: 15px;
+            text-align: left;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 900;
+            display: inline-block;
+        }
+
+        .s-used { background: #dcfce7; color: #166534; }
+        .s-corrupt { background: #fee2e2; color: #991b1b; }
+
+        .fraud-row { background: #fff1f2 !important; animation: shake 0.4s ease-in-out; }
+
+        .audit-log-box {
+            font-size: 0.85rem;
+            color: #4b5563;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            padding: 10px;
+            border-left: 3px solid var(--primary);
+            background: #f9fafb;
+            margin-bottom: 10px;
+            border-radius: 0 8px 8px 0;
+            word-break: break-word;
+        }
+
+        @media (max-width: 700px) {
+            body { padding: 14px; }
+
+            .card { padding: 18px; }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-auth {
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .login-box {
+                padding: 26px 18px;
+                border-radius: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="authGate">
+    <div class="login-box">
+        <i class="fa-solid fa-fingerprint" style="font-size: 3.5rem; color: var(--primary); margin-bottom: 20px;"></i>
+        <h2 style="margin-bottom: 25px;">Officer Auth</h2>
+        <input type="text" id="offID" placeholder="Officer ID">
+        <input type="password" id="offKey" placeholder="Access Key" style="margin-top:12px; margin-bottom: 20px;">
+        <button class="btn-main" style="background: var(--primary); color: white;" onclick="validateOfficer()">Secure Login</button>
+        <p style="margin-top: 15px; color: #6b7280; cursor: pointer; font-size: 0.85rem;" onclick="closeGate()">Cancel Access</p>
+    </div>
+</div>
+
+<div class="container" id="mainContainer">
+
+    <div class="nav">
+        <h1><i class="fa-solid fa-shield-halved"></i> TrustTrace</h1>
+        <button class="btn-auth" id="authBtn" onclick="openGate()">Officer Access</button>
+    </div>
+
+    <div class="card officer-dashboard" id="officerPanel">
+        <h3 style="margin-top:0; color: var(--primary);">
+            <i class="fa-solid fa-user-gear"></i> Auditor Hub: <span id="sessionName"></span>
+        </h3>
+
+        <div class="form-grid">
+            <input type="text" id="solveName" placeholder="Donor Name (Case Sensitive)">
+            <select id="solveAction">
+                <option value="verified">Verify: Funds Used Correctlly</option>
+                <option value="fraud">Confirm: Corruption Detected</option>
+            </select>
+        </div>
+
+        <textarea id="officerNote" placeholder="Official Justification Note..." style="margin-bottom:10px"></textarea>
+        <button class="btn-main" style="background: var(--dark); color: white;" onclick="officerAction()">Update Public Ledger</button>
+    </div>
+
+    <div class="card">
+        <h3><i class="fa-solid fa-plus-circle"></i> New Donation</h3>
+        <div class="form-grid">
+            <select id="domain">
+                <option>Hospital/Healthcare</option>
+                <option>Education/Schools</option>
+            </select>
+            <input type="number" id="amt" placeholder="Amount (₹)">
+            <input type="text" id="donor" placeholder="Your Name">
+        </div>
+        <button class="btn-main" style="background: var(--primary); color: white;" onclick="addDonation()">Donate & Track</button>
+    </div>
+
+    <div class="card">
+        <h3><i class="fa-solid fa-clipboard-check"></i> Official Audit Log</h3>
+        <div id="auditLog" class="audit-log-box">
+            <div class="log-entry">System started: Monitoring active.</div>
+        </div>
+    </div>
+
+    <h3><i class="fa-solid fa-list-check"></i> Public Utilization Ledger</h3>
+
+    <div class="card" style="padding:0">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Donor Name</th>
+                        <th>Date/Time</th>
+                        <th>Domain</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="ledger">
+                    <tr id="row-Vinay">
+                        <td>Vinay</td>
+                        <td>07 Feb | 11:30</td>
+                        <td><strong>Hospital</strong></td>
+                        <td>₹50,000</td>
+                        <td><span class="status s-used" id="st-Vinay">Verified Used</span></td>
+                        <td>
+                            <button style="border:none; background:none; color:var(--danger); cursor:pointer;" onclick="reportCorruption('Vinay')">
+                                Report Corruption
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const MEMBERS = { ID: "ADMIN1", KEY: "123" };
+    let activeOfficerID = "";
+
+    function openGate() {
+        document.getElementById('authGate').style.display = 'flex';
+        document.getElementById('mainContainer').style.filter = 'blur(4px)';
+    }
+
+    function closeGate() {
+        document.getElementById('authGate').style.display = 'none';
+        document.getElementById('mainContainer').style.filter = 'none';
+    }
+
+    function validateOfficer() {
+        const id = document.getElementById('offID').value;
+        const key = document.getElementById('offKey').value;
+
+        if (id === MEMBERS.ID && key === MEMBERS.KEY) {
+            activeOfficerID = id;
+            closeGate();
+            document.getElementById('officerPanel').style.display = "block";
+            document.getElementById('sessionName').innerText = id;
+            document.getElementById('authBtn').innerText = "Exit Portal";
+            document.getElementById('authBtn').style.background = "var(--danger)";
+            document.getElementById('authBtn').onclick = () => location.reload();
+        } else {
+            alert("Unauthorized Access Attempt Denied.");
+        }
+    }
+
+    function addDonation() {
+        const dom = document.getElementById('domain').value;
+        const amt = document.getElementById('amt').value;
+        const donor = document.getElementById('donor').value.trim();
+
+        if (!amt || !donor) return alert("Please enter both Name and Amount");
+
+        const safeID = donor.replace(/\s+/g, '_');
+
+        const now = new Date();
+        const time = now.getHours() + ":" + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+
+        const row = document.getElementById('ledger').insertRow(0);
+        row.id = `row-${safeID}`;
+        row.innerHTML = `
+            <td>${donor}</td>
+            <td>Today | ${time}</td>
+            <td><strong>${dom}</strong></td>
+            <td>₹${parseInt(amt).toLocaleString()}</td>
+            <td><span class="status" id="st-${safeID}" style="background:#eee">In Transit</span></td>
+            <td>
+                <button style="border:none; background:none; color:var(--danger); cursor:pointer;" onclick="reportCorruption('${safeID}')">
+                    Report Corruption
+                </button>
+            </td>
+        `;
+
+        document.getElementById('donor').value = "";
+        document.getElementById('amt').value = "";
+    }
+
+    function reportCorruption(safeID) {
+        const row = document.getElementById(`row-${safeID}`);
+        const tag = document.getElementById(`st-${safeID}`);
+        row.classList.add('fraud-row');
+        tag.className = "status s-corrupt";
+        tag.innerText = "FLAGGED BY USER";
+    }
+
+    function officerAction() {
+        const donorInput = document.getElementById('solveName').value.trim();
+        const safeID = donorInput.replace(/\s+/g, '_');
+        const action = document.getElementById('solveAction').value;
+        const note = document.getElementById('officerNote').value;
+
+        const row = document.getElementById(`row-${safeID}`);
+        const tag = document.getElementById(`st-${safeID}`);
+
+        if (!row) return alert("Donor Name '" + donorInput + "' not found in ledger. Check spelling!");
+        if (note.length < 5) return alert("Please provide a justification note.");
+
+        const log = document.getElementById('auditLog');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+
+        if (action === 'verified') {
+            row.classList.remove('fraud-row');
+            tag.className = "status s-used";
+            tag.innerHTML = "Verified: Funds Used";
+            entry.innerHTML = `<strong>OFFICER ${activeOfficerID}:</strong> Verified donation from ${donorInput}. <br> <em>Note: ${note}</em>`;
+        } else {
+            tag.className = "status s-corrupt";
+            tag.innerHTML = "FRAUD CONFIRMED";
+            row.style.background = "#000";
+            row.style.color = "#fff";
+            entry.innerHTML = `<span style="color:var(--danger)"><strong>OFFICER ${activeOfficerID}:</strong> CONFIRMED FRAUD for donation from ${donorInput}.</span> <br> <em>Reason: ${note}</em>`;
+        }
+
+        log.prepend(entry);
+        document.getElementById('officerNote').value = '';
+        document.getElementById('solveName').value = '';
+    }
+</script>
+
+</body>
+</html>
