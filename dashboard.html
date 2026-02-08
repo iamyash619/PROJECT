@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Benefit Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="box">
+
+      <h2 class="title">Schemes You Deserve</h2>
+      <div id="schemeArea"></div>
+
+      <h2 class="title">Reality Check</h2>
+
+      <p class="text">
+        Politicians claim: <b>"We help every poor citizen."</b>
+      </p>
+
+      <p class="text">
+        Reality: Most benefits never reach people because of corruption,
+        paperwork, and lack of awareness.
+      </p>
+
+      <p><b>Benefit Delivery Meter</b></p>
+
+      <div class="meter">
+        <div class="fill animated"></div>
+      </div>
+
+      <p class="text">
+        Only <b>25%</b> of citizens receive benefits.
+      </p>
+
+      <button class="btn danger" onclick="simulateDelay()">
+        Delay Simulator
+      </button>
+
+      <p id="delayMsg"></p>
+
+      <button class="btn report" onclick="openComplaint()">
+        Report Missing Benefit
+      </button>
+
+      <p id="complaintMsg"></p>
+
+      <a href="index.html">
+        <button class="btn back">Back</button>
+      </a>
+
+    </div>
+  </div>
+
+  <div id="applyPopup" class="popup">
+    <div class="popup-box">
+      <h2>Application Submitted</h2>
+      <p id="popupText"></p>
+      <button class="close-btn" onclick="closePopup()">Close</button>
+    </div>
+  </div>
+
+  <script>
+    let schemes = JSON.parse(localStorage.getItem("userSchemes")) || [];
+    let schemeArea = document.getElementById("schemeArea");
+
+    schemes.forEach(item => {
+      let div = document.createElement("div");
+      div.className = "scheme-card";
+
+      div.innerHTML = `
+        <h3>${item}</h3>
+        <button class="apply-btn" onclick="applyNow('${item}')">
+          Apply Now
+        </button>
+      `;
+
+      schemeArea.appendChild(div);
+    });
+
+    function applyNow(scheme) {
+      document.getElementById("applyPopup").style.display = "flex";
+      document.getElementById("popupText").innerHTML =
+        "You applied for <b>" + scheme + "</b><br><br>" +
+        "Many applications get stuck in paperwork.";
+    }
+
+    function closePopup() {
+      document.getElementById("applyPopup").style.display = "none";
+    }
+
+    function simulateDelay() {
+      let delays = [
+        "File lost in office.",
+        "Bribe demanded to move application.",
+        "Rejected for small mistake.",
+        "Waiting for approval for years.",
+        "Benefit reached only powerful people."
+      ];
+
+      document.getElementById("delayMsg").innerHTML =
+        delays[Math.floor(Math.random() * delays.length)];
+    }
+
+    function openComplaint() {
+      document.getElementById("complaintMsg").innerHTML =
+        "Complaint Registered. Most complaints are never answered.";
+    }
+  </script>
+
+</body>
+</html>
