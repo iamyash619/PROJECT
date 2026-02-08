@@ -1,1021 +1,443 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Constituency Issue Heatmap</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustTrace | Anti-Corruption Portal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5; --success: #16a34a; --danger: #dc2626;
+            --warning: #f59e0b; --bg: #f9fafb; --dark: #111827;
+        }
 
-  <style>
-    :root{
-      --bg:#070b12;
-      --card:#0c1322;
-      --card2:#0f1a2e;
-      --text:#e8eefc;
-      --muted:#a9b6d6;
-      --line:rgba(255,255,255,.08);
+        * { box-sizing: border-box; }
 
-      --brand:#6ee7ff;
-      --brand2:#8b5cf6;
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: var(--dark);
+            overflow-x: hidden;
+        }
 
-      --good:#22c55e;
-      --warn:#f59e0b;
-      --bad:#ef4444;
-      --info:#38bdf8;
+        .homeBtn{
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            z-index: 9999;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(17,24,39,.15);
+            background: rgba(255,255,255,.92);
+            backdrop-filter: blur(12px);
+            color: var(--dark);
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 13px;
+            letter-spacing: .2px;
+            box-shadow: 0 18px 60px rgba(0,0,0,.10);
+        }
 
-      --shadow: 0 18px 60px rgba(0,0,0,.45);
-      --radius: 18px;
-    }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            transition: filter 0.3s ease;
+        }
 
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      background: radial-gradient(1200px 800px at 10% 10%, rgba(139,92,246,.20), transparent 60%),
-                  radial-gradient(1000px 700px at 90% 20%, rgba(110,231,255,.14), transparent 55%),
-                  linear-gradient(180deg, #05070c, #070b12);
-      color:var(--text);
-      overflow-x:hidden;
-    }
+        @keyframes modalZoom {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
 
-    body:before{
-      content:"";
-      position:fixed;
-      inset:0;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.20'/%3E%3C/svg%3E");
-      opacity:.06;
-      pointer-events:none;
-      mix-blend-mode: overlay;
-      z-index:-1;
-      animation: drift 14s linear infinite;
-    }
-    @keyframes drift{
-      from{ transform:translate3d(0,0,0); }
-      to{ transform:translate3d(-60px,40px,0); }
-    }
+        @keyframes scanGlow {
+            0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(79, 70, 229, 0); }
+        }
 
-    .app{
-      display:grid;
-      grid-template-columns: 420px 1fr;
-      min-height:100vh;
-      gap:16px;
-      padding:16px;
-    }
+        @keyframes shake {
+            0%, 100% {transform: translateX(0);}
+            25% {transform: translateX(-5px);}
+            75% {transform: translateX(5px);}
+        }
 
-    @media (max-width: 980px){
-      .app{
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
-      }
-    }
+        #authGate {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
 
-    .sidebar{
-      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
-      border:1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      position:relative;
-      animation: pop .6s ease both;
-    }
-    @keyframes pop{
-      from{ opacity:0; transform: translateY(10px) scale(.98); }
-      to{ opacity:1; transform: translateY(0) scale(1); }
-    }
+        .login-box {
+            background: white;
+            padding: 35px 22px;
+            border-radius: 24px;
+            width: min(420px, 100%);
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            animation: modalZoom 0.3s ease-out;
+        }
 
-    .sideTop{
-      padding:18px 18px 12px;
-      border-bottom:1px solid var(--line);
-      background: linear-gradient(90deg, rgba(110,231,255,.10), rgba(139,92,246,.10));
-    }
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
 
-    .brandRow{
-      display:flex;
-      align-items:center;
-      gap:12px;
-    }
+        .nav h1 {
+            margin: 0;
+            color: var(--primary);
+            font-size: clamp(22px, 4vw, 34px);
+        }
 
-    .logo{
-      width:44px;height:44px;
-      border-radius:14px;
-      background: radial-gradient(circle at 30% 30%, var(--brand), var(--brand2));
-      box-shadow: 0 12px 30px rgba(110,231,255,.15);
-      position:relative;
-      overflow:hidden;
-    }
-    .logo:after{
-      content:"";
-      position:absolute;
-      inset:-60%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
-      transform: rotate(25deg);
-      animation: shine 2.6s ease-in-out infinite;
-    }
-    @keyframes shine{
-      0%,45%{ transform:translateX(-40%) rotate(25deg); opacity:0; }
-      60%{ opacity:1; }
-      100%{ transform:translateX(40%) rotate(25deg); opacity:0; }
-    }
+        .btn-auth {
+            padding: 10px 18px;
+            background: var(--dark);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            width: fit-content;
+            max-width: 100%;
+        }
 
-    .titleWrap h1{
-      font-size: 18px;
-      margin:0;
-      line-height:1.2;
-      letter-spacing:.2px;
-    }
-    .titleWrap p{
-      margin:2px 0 0;
-      color:var(--muted);
-      font-size:13px;
-    }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }
 
-    .pillRow{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      margin-top:14px;
-    }
+        .officer-dashboard {
+            display: none;
+            border-top: 5px solid var(--primary);
+            animation: scanGlow 2s infinite;
+        }
 
-    .pill{
-      font-size:12px;
-      padding:8px 10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.18);
-      color: var(--muted);
-      display:flex;
-      align-items:center;
-      gap:8px;
-      transition:.2s ease;
-      user-select:none;
-    }
-    .pill strong{ color:var(--text); font-weight:600; }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
 
-    .controls{
-      padding:14px 18px 16px;
-      display:grid;
-      gap:12px;
-    }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-family: inherit;
+            box-sizing: border-box;
+            font-size: 15px;
+        }
 
-    .grid2{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-    }
-    @media (max-width: 980px){
-      .grid2{ grid-template-columns: 1fr; }
-    }
+        textarea { min-height: 90px; resize: vertical; }
 
-    .field label{
-      display:block;
-      font-size:12px;
-      color:var(--muted);
-      margin-bottom:6px;
-    }
-    .field input, .field select, .field textarea{
-      width:100%;
-      padding:12px 12px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.25);
-      color: var(--text);
-      outline:none;
-      transition:.2s ease;
-    }
-    .field textarea{
-      min-height:92px;
-      resize: vertical;
-    }
-    .field input:focus, .field select:focus, .field textarea:focus{
-      border-color: rgba(110,231,255,.35);
-      box-shadow: 0 0 0 4px rgba(110,231,255,.08);
-    }
+        .btn-main {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 16px;
+        }
 
-    .btnRow{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 12px;
+        }
 
-    .btn{
-      cursor:pointer;
-      border:none;
-      padding:12px 14px;
-      border-radius:14px;
-      font-weight:700;
-      letter-spacing:.2px;
-      transition: transform .15s ease, box-shadow .2s ease, opacity .2s ease;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-      user-select:none;
-    }
-    .btn:active{ transform: translateY(1px) scale(.99); }
-    .btnPrimary{
-      background: linear-gradient(90deg, var(--brand), var(--brand2));
-      color:#04101a;
-      box-shadow: 0 14px 40px rgba(139,92,246,.16);
-    }
-    .btnGhost{
-      background: rgba(255,255,255,.05);
-      color: var(--text);
-      border:1px solid var(--line);
-    }
-    .btnDanger{
-      background: rgba(239,68,68,.12);
-      color: #ffd6d6;
-      border:1px solid rgba(239,68,68,.22);
-    }
+        table {
+            width: 100%;
+            min-width: 820px;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
 
-    .hint{
-      font-size:12px;
-      color: var(--muted);
-      line-height:1.45;
-      padding: 0 2px;
-    }
+        th {
+            background: #f3f4f6;
+            padding: 15px;
+            text-align: left;
+            font-size: 14px;
+            white-space: nowrap;
+        }
 
-    .listWrap{
-      padding: 0 18px 18px;
-    }
-    .listHeader{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-top:6px;
-      margin-bottom:10px;
-    }
-    .listHeader h2{
-      font-size:14px;
-      margin:0;
-      color: var(--text);
-      letter-spacing:.2px;
-    }
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 14px;
+            white-space: nowrap;
+        }
 
-    .chip{
-      font-size:12px;
-      padding:7px 10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.2);
-      color: var(--muted);
-    }
+        .status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 900;
+            display: inline-block;
+        }
 
-    .issueList{
-      display:grid;
-      gap:10px;
-      max-height: 42vh;
-      overflow:auto;
-      padding-right:4px;
-    }
-    @media (max-width: 980px){
-      .issueList{ max-height: 32vh; }
-    }
+        .s-used { background: #dcfce7; color: #166534; }
+        .s-corrupt { background: #fee2e2; color: #991b1b; }
 
-    .issueCard{
-      border-radius: 18px;
-      border:1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
-      padding:12px 12px;
-      transition:.18s ease;
-      position:relative;
-      overflow:hidden;
-      animation: slideIn .35s ease both;
-    }
-    @keyframes slideIn{
-      from{ opacity:0; transform: translateY(8px); }
-      to{ opacity:1; transform: translateY(0); }
-    }
-    .issueCard:hover{
-      transform: translateY(-1px);
-      border-color: rgba(110,231,255,.18);
-    }
+        .fraud-row { background: #fff1f2 !important; animation: shake 0.4s ease-in-out; }
 
-    .issueTop{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:10px;
-    }
-    .issueTitle{
-      margin:0;
-      font-size:13px;
-      line-height:1.3;
-      font-weight:800;
-    }
-    .issueMeta{
-      margin:3px 0 0;
-      font-size:12px;
-      color: var(--muted);
-    }
+        .audit-log-box {
+            font-size: 0.85rem;
+            color: #4b5563;
+            line-height: 1.6;
+        }
 
-    .badge{
-      font-size:11px;
-      padding:6px 9px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.18);
-      white-space:nowrap;
-    }
-    .bNew{ color:#dbeafe; border-color: rgba(59,130,246,.25); background: rgba(59,130,246,.08); }
-    .bReview{ color:#fff7ed; border-color: rgba(245,158,11,.25); background: rgba(245,158,11,.10); }
-    .bProgress{ color:#ecfeff; border-color: rgba(56,189,248,.25); background: rgba(56,189,248,.08); }
-    .bDone{ color:#dcfce7; border-color: rgba(34,197,94,.25); background: rgba(34,197,94,.08); }
+        .log-entry {
+            padding: 10px;
+            border-left: 3px solid var(--primary);
+            background: #f9fafb;
+            margin-bottom: 10px;
+            border-radius: 0 8px 8px 0;
+            word-break: break-word;
+        }
 
-    .issueActions{
-      display:flex;
-      gap:8px;
-      margin-top:10px;
-      flex-wrap:wrap;
-    }
-    .miniBtn{
-      font-size:12px;
-      padding:9px 10px;
-      border-radius:12px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.20);
-      color: var(--text);
-      cursor:pointer;
-      transition:.15s ease;
-    }
-    .miniBtn:hover{ border-color: rgba(110,231,255,.22); }
-    .miniBtn:active{ transform: translateY(1px); }
+        @media (max-width: 700px) {
+            body { padding: 14px; }
 
-    .mapArea{
-      border-radius: var(--radius);
-      border:1px solid var(--line);
-      overflow:hidden;
-      box-shadow: var(--shadow);
-      position:relative;
-      animation: pop .6s ease both;
-      min-height: 72vh;
-    }
-    @media (max-width: 980px){
-      .mapArea{ min-height: 54vh; }
-    }
+            .card { padding: 18px; }
 
-    #map{
-      height:100%;
-      width:100%;
-      background:#0b1020;
-    }
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
 
-    .mapOverlay{
-      position:absolute;
-      left:14px;
-      right:14px;
-      top:14px;
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      z-index: 500;
-      pointer-events:none;
-    }
+            .btn-auth {
+                width: 100%;
+                text-align: center;
+            }
+        }
 
-    .mapStat{
-      pointer-events:auto;
-      background: rgba(0,0,0,.35);
-      border:1px solid var(--line);
-      backdrop-filter: blur(10px);
-      border-radius: 999px;
-      padding:10px 12px;
-      font-size:12px;
-      color: var(--muted);
-      display:flex;
-      align-items:center;
-      gap:10px;
-      box-shadow: 0 12px 30px rgba(0,0,0,.25);
-    }
-    .mapStat strong{ color:var(--text); }
-
-    .toggle{
-      pointer-events:auto;
-      cursor:pointer;
-      user-select:none;
-      background: linear-gradient(90deg, rgba(110,231,255,.10), rgba(139,92,246,.10));
-      border:1px solid rgba(110,231,255,.18);
-      color: var(--text);
-      border-radius: 999px;
-      padding:10px 12px;
-      font-size:12px;
-      font-weight:800;
-      display:flex;
-      align-items:center;
-      gap:10px;
-      transition:.2s ease;
-    }
-    .toggle:hover{ transform: translateY(-1px); }
-
-    .toast{
-      position: fixed;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 9999;
-      padding: 12px 14px;
-      border-radius: 16px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.55);
-      backdrop-filter: blur(12px);
-      color: var(--text);
-      box-shadow: var(--shadow);
-      opacity:0;
-      pointer-events:none;
-      transition:.25s ease;
-      font-size:13px;
-      max-width: min(720px, 92vw);
-      display:flex;
-      align-items:center;
-      gap:10px;
-    }
-    .toast.show{
-      opacity:1;
-      transform: translateX(-50%) translateY(-6px);
-    }
-
-    .leaflet-popup-content-wrapper{
-      background: rgba(9,13,22,.92);
-      color: var(--text);
-      border-radius: 16px;
-      border:1px solid rgba(255,255,255,.08);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 16px 60px rgba(0,0,0,.45);
-    }
-    .leaflet-popup-tip{
-      background: rgba(9,13,22,.92);
-    }
-    .popupTitle{
-      font-weight:900;
-      margin:0 0 6px;
-      font-size:13px;
-    }
-    .popupMeta{
-      margin:0;
-      color: var(--muted);
-      font-size:12px;
-      line-height:1.4;
-    }
-  </style>
+        @media (max-width: 420px) {
+            .login-box {
+                padding: 26px 18px;
+                border-radius: 18px;
+            }
+        }
+    </style>
 </head>
 
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="sideTop">
-        <div class="brandRow">
-          <div class="logo"></div>
-          <div class="titleWrap">
-            <p>Report & track problems in your constituency</p>
-          </div>
-        </div>
 
-        <div class="pillRow">
-          <div class="pill"><strong>Map</strong> Live Pins</div>
-          <div class="pill"><strong>Heatmap</strong> Hotspots</div>
-          <div class="pill"><strong>Tracking</strong> Status</div>
-        </div>
-      </div>
+<a class="homeBtn" href="main.html">← Back to Home</a>
 
-      <div class="controls">
-        <div class="grid2">
-          <div class="field">
-            <label>Issue Category</label>
-            <select id="issueType">
-              <option value="Road">Road / Potholes</option>
-              <option value="Water">Water Supply</option>
-              <option value="Electricity">Electricity</option>
-              <option value="Education">Education</option>
-              <option value="Women Safety">Women Safety</option>
-              <option value="Public Safety">Public Safety</option>
-              <option value="Sanitation">Sanitation</option>
-              <option value="Other">Other</option>
+<div id="authGate">
+    <div class="login-box">
+        <i class="fa-solid fa-fingerprint" style="font-size: 3.5rem; color: var(--primary); margin-bottom: 20px;"></i>
+        <h2 style="margin-bottom: 25px;">Officer Auth</h2>
+        <input type="text" id="offID" placeholder="Officer ID">
+        <input type="password" id="offKey" placeholder="Access Key" style="margin-top:12px; margin-bottom: 20px;">
+        <button class="btn-main" style="background: var(--primary); color: white;" onclick="validateOfficer()">Secure Login</button>
+        <p style="margin-top: 15px; color: #6b7280; cursor: pointer; font-size: 0.85rem;" onclick="closeGate()">Cancel Access</p>
+    </div>
+</div>
+
+<div class="container" id="mainContainer">
+
+    <div class="nav">
+        <h1><i class="fa-solid fa-shield-halved"></i> TrustTrace</h1>
+        <button class="btn-auth" id="authBtn" onclick="openGate()">Officer Access</button>
+    </div>
+
+    <div class="card officer-dashboard" id="officerPanel">
+        <h3 style="margin-top:0; color: var(--primary);">
+            <i class="fa-solid fa-user-gear"></i> Auditor Hub: <span id="sessionName"></span>
+        </h3>
+
+        <div class="form-grid">
+            <input type="text" id="solveName" placeholder="Donor Name (Case Sensitive)">
+            <select id="solveAction">
+                <option value="verified">Verify: Funds Used Correctlly</option>
+                <option value="fraud">Confirm: Corruption Detected</option>
             </select>
-          </div>
+        </div>
 
-          <div class="field">
-            <label>Urgency</label>
-            <select id="urgency">
-              <option value="Low">Low</option>
-              <option value="Medium" selected>Medium</option>
-              <option value="High">High</option>
+        <textarea id="officerNote" placeholder="Official Justification Note..." style="margin-bottom:10px"></textarea>
+        <button class="btn-main" style="background: var(--dark); color: white;" onclick="officerAction()">Update Public Ledger</button>
+    </div>
+
+    <div class="card">
+        <h3><i class="fa-solid fa-plus-circle"></i> New Donation</h3>
+        <div class="form-grid">
+            <select id="domain">
+                <option>Hospital/Healthcare</option>
+                <option>Education/Schools</option>
             </select>
-          </div>
+            <input type="number" id="amt" placeholder="Amount (₹)">
+            <input type="text" id="donor" placeholder="Your Name">
         </div>
+        <button class="btn-main" style="background: var(--primary); color: white;" onclick="addDonation()">Donate & Track</button>
+    </div>
 
-        <div class="field">
-          <label>Describe the issue</label>
-          <textarea id="description" placeholder="Example: Street light not working near the school gate since 2 weeks..."></textarea>
+    <div class="card">
+        <h3><i class="fa-solid fa-clipboard-check"></i> Official Audit Log</h3>
+        <div id="auditLog" class="audit-log-box">
+            <div class="log-entry">System started: Monitoring active.</div>
         </div>
+    </div>
 
-        <div class="grid2">
-          <div class="field">
-            <label>Your Name (optional)</label>
-            <input id="reporter" placeholder="Anonymous citizen" />
-          </div>
+    <h3><i class="fa-solid fa-list-check"></i> Public Utilization Ledger</h3>
 
-          <div class="field">
-            <label>Photo URL (optional)</label>
-            <input id="photoUrl" placeholder="Paste image link (optional)" />
-          </div>
+    <div class="card" style="padding:0">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Donor Name</th>
+                        <th>Date/Time</th>
+                        <th>Domain</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="ledger">
+                    <tr id="row-Vinay">
+                        <td>Vinay</td>
+                        <td>07 Feb | 11:30</td>
+                        <td><strong>Hospital</strong></td>
+                        <td>₹50,000</td>
+                        <td><span class="status s-used" id="st-Vinay">Verified Used</span></td>
+                        <td>
+                            <button style="border:none; background:none; color:var(--danger); cursor:pointer;" onclick="reportCorruption('Vinay')">
+                                Report Corruption
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
+    </div>
 
-        <div class="btnRow">
-          <button class="btn btnPrimary" id="btnUseLocation">Use My Location</button>
-          <button class="btn btnGhost" id="btnDropPin">Drop Pin on Map</button>
-        </div>
+</div>
 
-        <div class="btnRow">
-          <button class="btn btnPrimary" id="btnSubmit">Submit Issue</button>
-          <button class="btn btnDanger" id="btnReset">Reset Demo Data</button>
-        </div>
+<script>
+    const MEMBERS = { ID: "ADMIN1", KEY: "123" };
+    let activeOfficerID = "";
 
-        <div class="hint">
-          Tip: Click the map to select a location. Then submit.
-          <br/>
-          This demo stores issues in <b>localStorage</b> (no backend).
-        </div>
-      </div>
-
-      <div class="listWrap">
-        <div class="listHeader">
-          <h2>Reported Issues</h2>
-          <span class="chip" id="countChip">0</span>
-        </div>
-
-        <div class="grid2">
-          <div class="field">
-            <label>Filter by Category</label>
-            <select id="filterType">
-              <option value="All" selected>All</option>
-              <option value="Road">Road / Potholes</option>
-              <option value="Water">Water Supply</option>
-              <option value="Electricity">Electricity</option>
-              <option value="Education">Education</option>
-              <option value="Women Safety">Women Safety</option>
-              <option value="Public Safety">Public Safety</option>
-              <option value="Sanitation">Sanitation</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label>Filter by Status</label>
-            <select id="filterStatus">
-              <option value="All" selected>All</option>
-              <option value="New">New</option>
-              <option value="In Review">In Review</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Resolved">Resolved</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="issueList" id="issueList"></div>
-      </div>
-    </aside>
-
-    <main class="mapArea">
-      <div class="mapOverlay">
-        <div class="mapStat">Selected: <strong id="selectedText">Not selected</strong></div>
-        <div class="mapStat">Total: <strong id="totalText">0</strong></div>
-        <div class="toggle" id="toggleHeat">Heatmap: OFF</div>
-        <div class="toggle" id="toggleCluster">Focus: ALL</div>
-      </div>
-
-      <div id="map"></div>
-    </main>
-  </div>
-
-  <div class="toast" id="toast">Saved.</div>
-
-  <script>
-    const $ = (id) => document.getElementById(id);
-
-    function uid(){
-      return "ISS-" + Math.random().toString(16).slice(2,10).toUpperCase();
+    function openGate() {
+        document.getElementById('authGate').style.display = 'flex';
+        document.getElementById('mainContainer').style.filter = 'blur(4px)';
     }
 
-    function nowText(){
-      const d = new Date();
-      return d.toLocaleString();
+    function closeGate() {
+        document.getElementById('authGate').style.display = 'none';
+        document.getElementById('mainContainer').style.filter = 'none';
     }
 
-    function toast(msg){
-      const t = $("toast");
-      t.textContent = msg;
-      t.classList.add("show");
-      setTimeout(()=>t.classList.remove("show"), 2200);
+    function validateOfficer() {
+        const id = document.getElementById('offID').value;
+        const key = document.getElementById('offKey').value;
+
+        if (id === MEMBERS.ID && key === MEMBERS.KEY) {
+            activeOfficerID = id;
+            closeGate();
+            document.getElementById('officerPanel').style.display = "block";
+            document.getElementById('sessionName').innerText = id;
+            document.getElementById('authBtn').innerText = "Exit Portal";
+            document.getElementById('authBtn').style.background = "var(--danger)";
+            document.getElementById('authBtn').onclick = () => location.reload();
+        } else {
+            alert("Unauthorized Access Attempt Denied.");
+        }
     }
 
-    function safeText(s){
-      return (s || "").toString().replace(/[<>]/g, "");
-    }
+    function addDonation() {
+        const dom = document.getElementById('domain').value;
+        const amt = document.getElementById('amt').value;
+        const donor = document.getElementById('donor').value.trim();
 
-    function urgencyWeight(u){
-      if(u === "High") return 0.95;
-      if(u === "Medium") return 0.65;
-      return 0.35;
-    }
+        if (!amt || !donor) return alert("Please enter both Name and Amount");
 
-    const STORAGE_KEY = "civicpulse_issues_v1";
+        const safeID = donor.replace(/\s+/g, '_');
 
-    function loadIssues(){
-      try{
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if(!raw) return [];
-        return JSON.parse(raw);
-      }catch(e){
-        return [];
-      }
-    }
+        const now = new Date();
+        const time = now.getHours() + ":" + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
 
-    function saveIssues(list){
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    }
-
-    function seedIfEmpty(){
-      const existing = loadIssues();
-      if(existing.length) return;
-
-      const baseLat = 28.6139;
-      const baseLng = 77.2090;
-
-      const demo = [
-        { type:"Road", urgency:"High", status:"New", desc:"Huge potholes near main market road.", lat:baseLat+0.012, lng:baseLng+0.010, reporter:"Aman", photo:"", createdAt:nowText(), id:uid() },
-        { type:"Water", urgency:"High", status:"In Review", desc:"No water supply in this block for 3 days.", lat:baseLat-0.010, lng:baseLng+0.008, reporter:"Neha", photo:"", createdAt:nowText(), id:uid() },
-        { type:"Women Safety", urgency:"High", status:"In Progress", desc:"Street lights off, unsafe after 8PM.", lat:baseLat+0.004, lng:baseLng-0.010, reporter:"Anonymous", photo:"", createdAt:nowText(), id:uid() },
-        { type:"Sanitation", urgency:"Medium", status:"New", desc:"Garbage not collected for a week.", lat:baseLat-0.006, lng:baseLng-0.006, reporter:"Rahul", photo:"", createdAt:nowText(), id:uid() },
-        { type:"Education", urgency:"Medium", status:"Resolved", desc:"School toilet fixed after complaint.", lat:baseLat+0.009, lng:baseLng-0.002, reporter:"Priya", photo:"", createdAt:nowText(), id:uid() },
-        { type:"Public Safety", urgency:"High", status:"New", desc:"Speeding vehicles near crossing. Need speed breaker.", lat:baseLat-0.003, lng:baseLng+0.014, reporter:"Kunal", photo:"", createdAt:nowText(), id:uid() }
-      ];
-
-      saveIssues(demo);
-    }
-
-    seedIfEmpty();
-
-    let selectedLatLng = null;
-    let heatEnabled = false;
-    let focusMode = "ALL";
-
-    const map = L.map("map", { zoomControl: true }).setView([28.6139, 77.2090], 12);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "© OpenStreetMap"
-    }).addTo(map);
-
-    let pinLayer = L.layerGroup().addTo(map);
-    let heatLayer = null;
-    let selectionMarker = null;
-
-    function statusBadgeClass(status){
-      if(status === "New") return "bNew";
-      if(status === "In Review") return "bReview";
-      if(status === "In Progress") return "bProgress";
-      return "bDone";
-    }
-
-    function markerEmoji(type){
-      const map = {
-        "Road":"",
-        "Water":"",
-        "Electricity":"",
-        "Education":"",
-        "Women Safety":"",
-        "Public Safety":"",
-        "Sanitation":"",
-        "Other":""
-      };
-      return map[type] || "";
-    }
-
-    function getFilteredIssues(){
-      const ft = $("filterType").value;
-      const fs = $("filterStatus").value;
-
-      return loadIssues().filter(i=>{
-        const okType = (ft === "All") ? true : i.type === ft;
-        const okStatus = (fs === "All") ? true : i.status === fs;
-        return okType && okStatus;
-      });
-    }
-
-    function refreshMap(){
-      pinLayer.clearLayers();
-
-      const all = loadIssues();
-      const filtered = getFilteredIssues();
-      const toShow = (focusMode === "FILTERED") ? filtered : all;
-
-      toShow.forEach(i=>{
-        const icon = L.divIcon({
-          className: "",
-          html: `
-            <div style="
-              width:36px;height:36px;
-              border-radius:14px;
-              display:grid;place-items:center;
-              background: rgba(0,0,0,.55);
-              border:1px solid rgba(255,255,255,.10);
-              backdrop-filter: blur(10px);
-              box-shadow: 0 16px 40px rgba(0,0,0,.35);
-              font-size:18px;
-              transform: translateY(-2px);
-            ">${markerEmoji(i.type)}</div>
-          `,
-          iconSize: [36,36],
-          iconAnchor: [18,18]
-        });
-
-        const m = L.marker([i.lat, i.lng], { icon }).addTo(pinLayer);
-
-        const photoHtml = i.photo
-          ? `<div style="margin-top:10px;">
-               <img src="${safeText(i.photo)}" style="width:100%;max-width:240px;border-radius:14px;border:1px solid rgba(255,255,255,.08);" />
-             </div>`
-          : "";
-
-        m.bindPopup(`
-          <div>
-            <p class="popupTitle">${safeText(i.type)} • ${safeText(i.id)}</p>
-            <p class="popupMeta">
-              <b>Status:</b> ${safeText(i.status)}<br/>
-              <b>Urgency:</b> ${safeText(i.urgency)}<br/>
-              <b>Reported:</b> ${safeText(i.createdAt)}<br/>
-              <b>By:</b> ${safeText(i.reporter || "Anonymous")}
-              <br/><br/>
-              ${safeText(i.desc)}
-            </p>
-            ${photoHtml}
-          </div>
-        `);
-      });
-
-      if(heatLayer){
-        map.removeLayer(heatLayer);
-        heatLayer = null;
-      }
-
-      if(heatEnabled){
-        const points = toShow.map(i => [i.lat, i.lng, urgencyWeight(i.urgency)]);
-        heatLayer = L.heatLayer(points, {
-          radius: 28,
-          blur: 18,
-          maxZoom: 16
-        }).addTo(map);
-      }
-
-      $("totalText").textContent = loadIssues().length;
-    }
-
-    map.on("click", (e)=>{
-      selectedLatLng = e.latlng;
-
-      $("selectedText").textContent =
-        selectedLatLng.lat.toFixed(5) + ", " + selectedLatLng.lng.toFixed(5);
-
-      if(selectionMarker) map.removeLayer(selectionMarker);
-
-      selectionMarker = L.circleMarker(selectedLatLng, {
-        radius: 10,
-        weight: 2,
-        color: "white",
-        fillOpacity: 0.18
-      }).addTo(map);
-
-      toast("Location selected. Now submit your issue.");
-    });
-
-    function renderList(){
-      const list = $("issueList");
-      list.innerHTML = "";
-
-      const filtered = getFilteredIssues();
-      $("countChip").textContent = filtered.length;
-
-      if(filtered.length === 0){
-        list.innerHTML = `
-          <div class="issueCard">
-            <div class="issueTop">
-              <div>
-                <p class="issueTitle">No issues found</p>
-                <p class="issueMeta">Try changing filters or submit a new issue.</p>
-              </div>
-              <span class="badge bReview">Empty</span>
-            </div>
-          </div>
+        const row = document.getElementById('ledger').insertRow(0);
+        row.id = `row-${safeID}`;
+        row.innerHTML = `
+            <td>${donor}</td>
+            <td>Today | ${time}</td>
+            <td><strong>${dom}</strong></td>
+            <td>₹${parseInt(amt).toLocaleString()}</td>
+            <td><span class="status" id="st-${safeID}" style="background:#eee">In Transit</span></td>
+            <td>
+                <button style="border:none; background:none; color:var(--danger); cursor:pointer;" onclick="reportCorruption('${safeID}')">
+                    Report Corruption
+                </button>
+            </td>
         `;
-        return;
-      }
 
-      filtered
-        .sort((a,b)=> (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
-        .forEach(i=>{
-          const card = document.createElement("div");
-          card.className = "issueCard";
-
-          const badgeClass = statusBadgeClass(i.status);
-
-          card.innerHTML = `
-            <div class="issueTop">
-              <div>
-                <p class="issueTitle">${safeText(i.type)} • ${safeText(i.id)}</p>
-                <p class="issueMeta">
-                  ${safeText(i.desc).slice(0, 92)}${i.desc.length > 92 ? "..." : ""}
-                  <br/>
-                  <span style="opacity:.9"> ${i.lat.toFixed(4)}, ${i.lng.toFixed(4)}</span>
-                </p>
-              </div>
-              <span class="badge ${badgeClass}">${safeText(i.status)}</span>
-            </div>
-
-            <div class="issueActions">
-              <button class="miniBtn" data-action="zoom" data-id="${i.id}">Zoom</button>
-              <button class="miniBtn" data-action="next" data-id="${i.id}">Update Status</button>
-              <button class="miniBtn" data-action="delete" data-id="${i.id}">Delete</button>
-            </div>
-          `;
-
-          list.appendChild(card);
-        });
+        document.getElementById('donor').value = "";
+        document.getElementById('amt').value = "";
     }
 
-    function nextStatus(s){
-      if(s === "New") return "In Review";
-      if(s === "In Review") return "In Progress";
-      if(s === "In Progress") return "Resolved";
-      return "Resolved";
+    function reportCorruption(safeID) {
+        const row = document.getElementById(`row-${safeID}`);
+        const tag = document.getElementById(`st-${safeID}`);
+        row.classList.add('fraud-row');
+        tag.className = "status s-corrupt";
+        tag.innerText = "FLAGGED BY USER";
     }
 
-    $("issueList").addEventListener("click", (e)=>{
-      const btn = e.target.closest("button");
-      if(!btn) return;
+    function officerAction() {
+        const donorInput = document.getElementById('solveName').value.trim();
+        const safeID = donorInput.replace(/\s+/g, '_');
+        const action = document.getElementById('solveAction').value;
+        const note = document.getElementById('officerNote').value;
 
-      const id = btn.getAttribute("data-id");
-      const action = btn.getAttribute("data-action");
+        const row = document.getElementById(`row-${safeID}`);
+        const tag = document.getElementById(`st-${safeID}`);
 
-      const all = loadIssues();
-      const idx = all.findIndex(x => x.id === id);
-      if(idx === -1) return;
+        if (!row) return alert("Donor Name '" + donorInput + "' not found in ledger. Check spelling!");
+        if (note.length < 5) return alert("Please provide a justification note.");
 
-      if(action === "zoom"){
-        const it = all[idx];
-        map.setView([it.lat, it.lng], 16, { animate:true });
-        toast("Zoomed to issue on map.");
-      }
+        const log = document.getElementById('auditLog');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
 
-      if(action === "next"){
-        all[idx].status = nextStatus(all[idx].status);
-        saveIssues(all);
-        toast("Status updated → " + all[idx].status);
-        renderList();
-        refreshMap();
-      }
+        if (action === 'verified') {
+            row.classList.remove('fraud-row');
+            tag.className = "status s-used";
+            tag.innerHTML = "Verified: Funds Used";
+            entry.innerHTML = `<strong>OFFICER ${activeOfficerID}:</strong> Verified donation from ${donorInput}. <br> <em>Note: ${note}</em>`;
+        } else {
+            tag.className = "status s-corrupt";
+            tag.innerHTML = "FRAUD CONFIRMED";
+            row.style.background = "#000";
+            row.style.color = "#fff";
+            entry.innerHTML = `<span style="color:var(--danger)"><strong>OFFICER ${activeOfficerID}:</strong> CONFIRMED FRAUD for donation from ${donorInput}.</span> <br> <em>Reason: ${note}</em>`;
+        }
 
-      if(action === "delete"){
-        const ok = confirm("Delete this issue?\n\n" + id);
-        if(!ok) return;
-        all.splice(idx, 1);
-        saveIssues(all);
-        toast("Issue deleted.");
-        renderList();
-        refreshMap();
-      }
-    });
+        log.prepend(entry);
+        document.getElementById('officerNote').value = '';
+        document.getElementById('solveName').value = '';
+    }
+</script>
 
-    $("btnUseLocation").addEventListener("click", ()=>{
-      if(!navigator.geolocation){
-        toast("Geolocation not supported in your browser.");
-        return;
-      }
-
-      toast("Getting your location...");
-      navigator.geolocation.getCurrentPosition(
-        (pos)=>{
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-
-          selectedLatLng = { lat, lng };
-
-          $("selectedText").textContent =
-            lat.toFixed(5) + ", " + lng.toFixed(5);
-
-          if(selectionMarker) map.removeLayer(selectionMarker);
-
-          selectionMarker = L.circleMarker([lat, lng], {
-            radius: 10,
-            weight: 2,
-            color: "white",
-            fillOpacity: 0.18
-          }).addTo(map);
-
-          map.setView([lat, lng], 15, { animate:true });
-
-          toast("Location set. Now submit your issue.");
-        },
-        ()=>{
-          toast("Location permission denied.");
-        },
-        { enableHighAccuracy:true, timeout:8000 }
-      );
-    });
-
-    $("btnDropPin").addEventListener("click", ()=>{
-      toast("Click on the map to select a location.");
-    });
-
-    $("btnSubmit").addEventListener("click", ()=>{
-      const type = $("issueType").value;
-      const urgency = $("urgency").value;
-      const desc = $("description").value.trim();
-      const reporter = $("reporter").value.trim() || "Anonymous";
-      const photo = $("photoUrl").value.trim();
-
-      if(!selectedLatLng){
-        toast("Select a location on the map first.");
-        return;
-      }
-      if(desc.length < 8){
-        toast("Write a proper description (min 8 characters).");
-        return;
-      }
-
-      const newIssue = {
-        id: uid(),
-        type,
-        urgency,
-        status: "New",
-        desc,
-        reporter,
-        photo,
-        lat: selectedLatLng.lat,
-        lng: selectedLatLng.lng,
-        createdAt: nowText()
-      };
-
-      const all = loadIssues();
-      all.unshift(newIssue);
-      saveIssues(all);
-
-      $("description").value = "";
-      $("reporter").value = "";
-      $("photoUrl").value = "";
-
-      toast("Issue submitted successfully!");
-      renderList();
-      refreshMap();
-    });
-
-    $("btnReset").addEventListener("click", ()=>{
-      const ok = confirm("Reset demo data?\nThis will delete all stored issues.");
-      if(!ok) return;
-      localStorage.removeItem(STORAGE_KEY);
-      seedIfEmpty();
-      toast("Demo data reset.");
-      renderList();
-      refreshMap();
-    });
-
-    $("toggleHeat").addEventListener("click", ()=>{
-      heatEnabled = !heatEnabled;
-      $("toggleHeat").textContent = heatEnabled ? "Heatmap: ON" : "Heatmap: OFF";
-      toast(heatEnabled ? "Heatmap enabled." : "Heatmap disabled.");
-      refreshMap();
-    });
-
-    $("toggleCluster").addEventListener("click", ()=>{
-      focusMode = (focusMode === "ALL") ? "FILTERED" : "ALL";
-      $("toggleCluster").textContent = (focusMode === "FILTERED") ? "Focus: FILTERED" : "Focus: ALL";
-      toast(focusMode === "FILTERED" ? "Showing only filtered issues on map." : "Showing all issues on map.");
-      refreshMap();
-    });
-
-    $("filterType").addEventListener("change", ()=>{
-      renderList();
-      refreshMap();
-    });
-    $("filterStatus").addEventListener("change", ()=>{
-      renderList();
-      refreshMap();
-    });
-
-    renderList();
-    refreshMap();
-
-    setTimeout(()=>{
-      const all = loadIssues();
-      if(all.length >= 2){
-        const group = all.map(i => [i.lat, i.lng]);
-        const bounds = L.latLngBounds(group);
-        map.fitBounds(bounds.pad(0.18), { animate:true });
-      }
-    }, 350);
-  </script>
 </body>
 </html>
