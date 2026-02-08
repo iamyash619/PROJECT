@@ -6,44 +6,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             font-family: "Segoe UI", sans-serif;
             background: linear-gradient(120deg, #f0f4ff, #ffffff);
             color: #333;
+            line-height: 1.6;
+        }
+
+        .homeBtn{
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            z-index: 9999;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(30,60,114,.18);
+            background: rgba(255,255,255,.92);
+            backdrop-filter: blur(12px);
+            color: #1e3c72;
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 13px;
+            letter-spacing: .2px;
+            box-shadow: 0 18px 60px rgba(0,0,0,.10);
         }
 
         header {
-            background: #1e3c72;
             background: linear-gradient(to right, #1e3c72, #2a5298);
             color: white;
-            padding: 30px;
+            padding: 35px 20px;
             text-align: center;
         }
 
+        header h1 {
+            margin: 0;
+            font-size: clamp(22px, 4vw, 36px);
+        }
+
+        header p {
+            margin-top: 10px;
+            font-size: clamp(14px, 2vw, 18px);
+            opacity: 0.9;
+        }
+
         section {
-            width: 85%;
+            width: min(1100px, 92%);
             margin: auto;
-            margin-top: 40px;
+            margin-top: 35px;
         }
 
         h2 {
             color: #1e3c72;
             border-left: 5px solid #1e3c72;
             padding-left: 10px;
+            font-size: clamp(18px, 2.5vw, 24px);
         }
 
         .card {
             background: white;
-            padding: 20px;
+            padding: 22px;
             margin-top: 20px;
             border-radius: 12px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
             transition: transform 0.3s;
         }
 
-        .card:hover {
-            transform: translateY(-5px);
+        @media (hover: hover) {
+            .card:hover {
+                transform: translateY(-5px);
+            }
         }
 
         .highlight {
@@ -51,44 +87,51 @@
             padding: 15px;
             border-left: 4px solid #2a5298;
             margin-top: 15px;
-            border-radius: 5px;
+            border-radius: 6px;
+            font-size: 15px;
         }
 
         .case-list {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
             margin-top: 20px;
         }
 
         .case {
             background: #ffffff;
-            padding: 15px;
+            padding: 16px;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             cursor: pointer;
             transition: 0.3s;
+            font-size: 15px;
         }
 
-        .case:hover {
-            background: #f3f7ff;
+        @media (hover: hover) {
+            .case:hover {
+                background: #f3f7ff;
+            }
         }
 
         .case-details {
             display: none;
             font-size: 14px;
             margin-top: 10px;
+            opacity: 0.9;
         }
 
         button {
-            margin-top: 20px;
-            padding: 10px 20px;
+            margin-top: 18px;
+            padding: 12px 22px;
             background: #2a5298;
             color: white;
             border: none;
-            border-radius: 20px;
+            border-radius: 22px;
             cursor: pointer;
             font-size: 16px;
+            width: fit-content;
+            max-width: 100%;
         }
 
         button:hover {
@@ -97,14 +140,32 @@
 
         footer {
             margin-top: 50px;
-            padding: 20px;
+            padding: 20px 15px;
             background: #1e3c72;
             color: white;
             text-align: center;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                padding: 28px 16px;
+            }
+
+            .card {
+                padding: 18px;
+            }
+
+            button {
+                width: 100%;
+                text-align: center;
+            }
         }
     </style>
 </head>
 <body>
+
+<a class="homeBtn" href="main.html">← Back to Home</a>
 
 <header>
     <h1>Open Innovation in Political Industries</h1>
